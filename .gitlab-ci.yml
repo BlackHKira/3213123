@@ -7,7 +7,7 @@ build-stag:
   stage: build
   script:
     - echo "Building Docker Image..."
-    - docker build -f Dockerfile -t your-registry.com/f2c-config-stag:latest .
+    - docker build -f Dockerfile -t Docker Hub.com/f2c-config-stag:latest .
     - docker push your-registry.com/f2c-config-stag:latest
 
 # Job mới: Bắn tín hiệu sang Jenkins thay vì đẩy lên K8s
