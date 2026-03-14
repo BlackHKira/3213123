@@ -1,0 +1,248 @@
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui/index.html
+  show-actuator: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: db,redis,elasticsearch
+        liveness:
+          include: livenessState,resilience4jCheck
+  health:
+    circuitbreakers:
+      enabled: false
+    ratelimiters:
+      enabled: false
+  metrics:
+    tags:
+      application:
+        spring.application.name:
+  tracing:
+    enabled: true
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY}
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.cloud: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg trace_id=%X{trace_id} span_id=%X{span_id}%n"
+server:
+  port: 8080
+  servlet:
+    context-path: /ecommerce
+  shutdown: graceful
+  forward-headers-strategy: framework
+  error:
+    whitelabel:
+      enabled: false
+  compression:
+    enabled: true
+    min-response-size: 1KB
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain,application/javascript,text/css
+  tomcat:
+    threads:
+      max: 200
+    accept-count: 100
+    max-connections: 10000
+spring:
+  application:
+    name: f2c-ecommerce
+  cloud:
+    openfeign:
+      httpclient:
+        enabled: true
+        hc5:
+          enabled: true
+      circuitbreaker:
+        enabled: false
+      micrometer:
+        enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 5000
+            read-timeout: 10000
+            logger-level: basic
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      read-unknown-enum-values-as-null: true
+  lifecycle:
+    timeout-per-shutdown-phase: 30
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      connect-timeout: 2s
+      repositories:
+        enabled: false
+      client-type: lettuce
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      ssl:
+        enabled: ${REDIS_SSL}
+        verify-mode: ${REDIS_SSL_VERIFY_MODE}
+      lettuce:
+        pool:
+          enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+  sql:
+    init:
+      mode: never
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URL}
+    connection-timeout: 5s
+  threads:
+    virtual:
+      enabled: true
+  liquibase:
+    enabled: false
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVER}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+custom:
+  properties:
+    auth:
+      keycloak-paths:
+        - /s/**
+        - /b/**
+      token-paths:
+        - /f/**
+    security:
+      request:
+        security-bean-name: securityRequest
+        private-key-checksum: checksum
+        private-key-encrypt: encrypt
+    private:
+      key: ${PRIVATE_KEY}
+    token:
+      rsa:
+        private:
+          key: ${RSA_PRIVATE_KEY}
+        public:
+          key: ${RSA_PUBLIC_KEY}
+number:
+  search-history:
+    max-history: 20
+base:
+  feign:
+    hc5:
+      enabled: true
+      max-connections: 500
+      max-connections-per-route: 100
+      connect-timeout: 5000
+      socket-timeout: 10000
+      evict-idle-time: 30
+      pool-concurrency-policy: LAX
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 50
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+        slow-call-duration-threshold: 5s
+        slow-call-rate-threshold: 80
+        ignore-exceptions:
+          - com.vtp.f2c.ecommerce.base.exception.BaseException
+          - com.vtp.f2c.ecommerce.base.exception.NonRetryableException
+        record-exceptions:
+          - java.net.ConnectException
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+          - feign.FeignException$FeignServerException
+          - feign.RetryableException
+          - com.vtp.f2c.ecommerce.base.exception.RetryableException
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
+        cancel-running-future: true
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 2s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        randomized-wait-factor: 0.5
+        retry-exceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - feign.RetryableException
+          - com.vtp.f2c.ecommerce.base.exception.RetryableException
+        ignore-exceptions:
+          - io.github.resilience4j.circuitbreaker.CallNotPermittedException
+          - io.github.resilience4j.bulkhead.BulkheadFullException
+  ratelimiter:
+    instances:
+      commonReadRule:
+        register-health-indicator: true
+        limit-for-period: 5
+        limit-refresh-period: 60s
+        timeout-duration: 0s
+        allow-health-indicator-to-fail: true
+        subscribe-for-events: true
+        event-consumer-buffer-size: 50
+aws:
+  s3:
+    endpoint-url: ${AWS_URL}
+    bucket-name: ${AWS_BUCKET_NAME}
+    access-key: ${AWS_ACCESS_KEY}
+    secret-key: ${AWS_SECRET_KEY}
+    region: ${AWS_REGION}
+    connection-timeout: 5s
+    socket-timeout: 25s
+    proxy-host:
+    proxy-port:
+external:
+  client:
+    payment:
+      fico:
+        base-url: https://devbankfico.viettelpost.vn/api
+        header:
+          client-id: VTP_PAY_VIPO
+          secret-id: 3ac08cd2c1a83fca46c080768468059
+        body:
+          partner-source: OMS
+          service-type: RECEIVE_DEPOSIT
+          merchant-type: VIPO

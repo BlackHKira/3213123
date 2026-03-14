@@ -1,0 +1,91 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /customer/iam
+spring:
+  application:
+    name: f2c-iam
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            non_contextual_creation: true
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+keycloak:
+  server-url: ${KEYCLOAK_URL}
+  realm: ${KEYCLOAK_REALM}
+
+  admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
+  admin-client-secret: ${KEYCLOAK_ADMIN_SECRET}
+
+  auth-client-id: ${KEYCLOAK_AUTH_CLIENT_ID}
+  auth-client-secret: ${KEYCLOAK_AUTH_SECRET}
+
+  iam-client-id: ${KEYCLOAK_IAM_CLIENT_ID}
+  iam-client-secret: ${KEYCLOAK_IAM_SECRET}
+
+  policy-enforcer:
+    enforcement-mode: ENFORCING
+    http-method-as-scope: true
+    paths:
+      - path: /api/v1/auth/s/*
+        enforcement-mode: DISABLED
+      - path: /api/v1/auth/f/*
+        enforcement-mode: DISABLED
+      - path: /api/v1/auth/b/*
+        enforcement-mode: DISABLED
+
+  jwk-set-uri: ${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs
+
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+    serviceUrl:
+      defaultZone: ${EUREKA_URL}/eureka
+
+custom:
+  properties:
+    sso:
+      base-url: ${SSO_BASE_OTP_URL}
+    sms:
+      base-url: https://dev-sms-okd.viettelpost.vn
+      key: 440c63a4-f526-48c1-9f3f-687cc8508806
+    user:
+      lock-ttl: 900
+      max-attempts: 5
+    otp:
+      ttl: 300
+      lock_ttl: 300
+      max-attempts: 5
+      info_ttl: 300
+    token:
+      time-life: ${TOKEN_TIME_LIFE}
+      rsa:
+        private:
+          key: ${RSA_PRIVATE_KEY}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg trace_id=%X{trace_id} span_id=%X{span_id}%n"

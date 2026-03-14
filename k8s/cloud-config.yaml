@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cloud-config-secret
+  labels:
+    app: cloud-config-server
+type: Opaque
+stringData:
+  GIT_TOKEN: "EXAMPLE_ENV_GIT_TOKEN"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloud-config-config
+  labels:
+    app: cloud-config-server
+data:
+  GIT_URI: "EXAMPLE_ENV_GIT_URI"
+  GIT_BRANCH: "EXAMPLE_ENV_GIT_BRANCH"
+  GIT_SEARCH_PATHS: "EXAMPLE_ENV_GIT_SEARCH_PATHS"
+  GIT_REFRESH_RATE: "EXAMPLE_ENV_GIT_REFRESH_RATE"
+  GIT_SKIP_SSL: "EXAMPLE_ENV_GIT_SKIP_SSL"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cloud-config-git-pvc
+  labels:
+    app: cloud-config-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cloud-config-configs-pvc
+  labels:
+    app: cloud-config-server
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-config-server
+  labels:
+    app: cloud-config-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloud-config-server
+  template:
+    metadata:
+      labels:
+        app: cloud-config-server
+    spec:
+      containers:
+      - name: cloud-config-server
+        image: cloud-config-server:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8888
+        env:
+        - name: GIT_URI
+          valueFrom:
+            configMapKeyRef:
+              name: cloud-config-config
+              key: GIT_URI
+        - name: GIT_BRANCH
+          valueFrom:
+            configMapKeyRef:
+              name: cloud-config-config
+              key: GIT_BRANCH
+        - name: GIT_SEARCH_PATHS
+          valueFrom:
+            configMapKeyRef:
+              name: cloud-config-config
+              key: GIT_SEARCH_PATHS
+        - name: GIT_REFRESH_RATE
+          valueFrom:
+            configMapKeyRef:
+              name: cloud-config-config
+              key: GIT_REFRESH_RATE
+        - name: GIT_SKIP_SSL
+          valueFrom:
+            configMapKeyRef:
+              name: cloud-config-config
+              key: GIT_SKIP_SSL
+        - name: GIT_USERNAME
+          value: "oauth2"
+        - name: GIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cloud-config-secret
+              key: GIT_TOKEN
+        - name: SPRING_CLOUD_CONFIG_SERVER_GIT_BASEDIR
+          value: "/app/git"
+        - name: SPRING_CLOUD_CONFIG_SERVER_GIT_FORCE_PULL
+          value: "true"
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8888
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        volumeMounts:
+          - name: git-cache
+            mountPath: /app/git
+          - name: configs-fallback
+            mountPath: /app/configs
+            readOnly: true
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+      volumes:
+      - name: git-cache
+        persistentVolumeClaim:
+          claimName: cloud-config-git-pvc
+      - name: configs-fallback
+        persistentVolumeClaim:
+          claimName: cloud-config-configs-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-config-server
+  labels:
+    app: cloud-config-server
+spec:
+  selector:
+    app: cloud-config-server
+  ports:
+  - name: http
+    port: 8888
+    targetPort: 8888
+  type: ClusterIP

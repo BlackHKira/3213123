@@ -1,0 +1,77 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  REGISTRY: "192.168.11.83:5000"
+  IMAGE_NAME: "myrepo/my-backend"
+  CHART_PATH: "helm/my-backend"
+
+#
+# ========= BUILD STAGE =========
+#
+build:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $REGISTRY
+    - docker build -t $REGISTRY/$IMAGE_NAME:$CI_COMMIT_TAG .
+    - docker push $REGISTRY/$IMAGE_NAME:$CI_COMMIT_TAG
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^(dev|stg)_[0-9]{2}\.[0-9]{2}\.[0-9]{4}_v[0-9]+$/'
+
+#
+# ========= DEPLOY DEV =========
+#
+deploy-dev:
+  stage: deploy
+  image:
+    name: alpine/helm:3.14.0
+    entrypoint: [""]
+  variables:
+    NAMESPACE: "f2c-dev"
+    RELEASE_NAME: "my-backend-dev"
+  script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_DEV" | base64 -d > ~/.kube/config
+
+    - helm upgrade --install $RELEASE_NAME $CHART_PATH \
+      --namespace $NAMESPACE \
+      --create-namespace \
+      --set image.repository="$REGISTRY/$IMAGE_NAME" \
+      --set image.tag="$CI_COMMIT_TAG" \
+      --wait --atomic
+
+  environment:
+    name: dev
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^dev_[0-9]{2}\.[0-9]{2}\.[0-9]{4}_v[0-9]+$/'
+
+#
+# ========= DEPLOY STAG =========
+#
+deploy-stag:
+  stage: deploy
+  image:
+    name: alpine/helm:3.14.0
+    entrypoint: [""]
+  variables:
+    NAMESPACE: "f2c-stag"
+    RELEASE_NAME: "my-backend-stag"
+  script:
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_STAG" | base64 -d > ~/.kube/config
+
+    - helm upgrade --install $RELEASE_NAME $CHART_PATH \
+      --namespace $NAMESPACE \
+      --create-namespace \
+      --set image.repository="$REGISTRY/$IMAGE_NAME" \
+      --set image.tag="$CI_COMMIT_TAG" \
+      --wait --atomic
+
+  environment:
+    name: staging
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^stg_[0-9]{2}\.[0-9]{2}\.[0-9]{4}_v[0-9]+$/'

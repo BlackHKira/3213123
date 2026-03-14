@@ -1,0 +1,29 @@
+server:
+  port: 8888
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+
+spring:
+  application:
+    name: cloud-config-server
+  profiles:
+    active: git
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://git.viettelpost.vn/f2c/backend/f2c-config.git
+          default-label: main
+          search-paths:
+            - common
+            - '{application}'
+          clone-on-start: true

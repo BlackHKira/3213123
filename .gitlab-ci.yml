@@ -1,0 +1,254 @@
+include:
+  - project: "f2c/root-ci"
+    ref: main
+    file: ".ci-backend.yml"
+
+variables:
+  SYSTEM_NAME: "f2c"
+  SERVICE_NAME: "${CI_PROJECT_NAME}"
+  DOCKERFILE: "./Dockerfile"
+  BUILD_CONTEXT: "."
+  IMAGE_TAG: "${CI_COMMIT_TAG}"
+
+  # Config build
+  CONFIG_SOURCE_DIR: "./src/main/resources/config"
+  CONFIG_SERVICES: "f2c-ecommerce f2c-iam integration-service"
+
+  # K8s
+  DEV_NAMESPACE: "dev-f2c-app"
+  STAG_NAMESPACE: "stag-f2c-app"
+  PROD_NAMESPACE: "f2c-prod"
+  K8S_DEPLOYMENT_NAME: "cloud-config-server"
+  K8S_CONTAINER_NAME: "cloud-config-server"
+  K8S_ROLLOUT_TIMEOUT: "300s"
+
+  # Prod registry
+  PROD_REGISTRY: "registry-pifa.viettelpost.vn"
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^dev_\d{2}\.\d{2}\.\d{4}_v\d+$/'
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^stag_\d{2}\.\d{2}\.\d{4}_v\d+$/'
+      when: always
+    - if: '$CI_COMMIT_TAG =~ /^prod_\d{2}\.\d{2}\.\d{4}_v\d+$/'
+      when: always
+    - when: never
+
+stages:
+  - build
+  - deploy
+
+build:dev:
+  stage: build
+  tags:
+    - dev-f2c-cicd
+  variables:
+    IMAGE_REPO: "${CI_REGISTRY}/${SYSTEM_NAME}/${SERVICE_NAME}"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^dev_\d{2}\.\d{2}\.\d{4}_v\d+$/'
+      when: always
+  script:
+    - set -euo pipefail
+    - export ENV_NAME="$(echo "${CI_COMMIT_TAG}" | cut -d'_' -f1)"
+    - export IMAGE_FULL="${IMAGE_REPO}:${IMAGE_TAG}"
+    - echo "ENV_NAME=${ENV_NAME}"
+    - echo "IMAGE_FULL=${IMAGE_FULL}"
+    - docker info
+
+    - wget -O ./.bin-yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+    - chmod +x ./.bin-yq
+    - export YQ_BIN="$(pwd)/.bin-yq"
+    - ${YQ_BIN} --version
+
+    - chmod +x scripts/build-native-config.sh
+    - chmod +x scripts/build-all-native-config.sh
+    - SERVICES="${CONFIG_SERVICES}" YQ_BIN="${YQ_BIN}" ./scripts/build-all-native-config.sh "${ENV_NAME}" "${CONFIG_SOURCE_DIR}"
+
+    - test -d build/native-config/config
+    - find build/native-config/config -maxdepth 3 -type f | sort
+
+    - >
+      docker build
+      -f "${DOCKERFILE}"
+      -t "${IMAGE_FULL}"
+      --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+      --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
+      --build-arg VERSION="${IMAGE_TAG}"
+      --label "git.commit=${CI_COMMIT_SHA}"
+      --label "git.branch=${CI_COMMIT_REF_NAME}"
+      --label "git.tag=${CI_COMMIT_TAG}"
+      --label "pipeline.id=${CI_PIPELINE_ID}"
+      --label "pipeline.url=${CI_PIPELINE_URL}"
+      --label "service.name=${SERVICE_NAME}"
+      --label "config.env=${ENV_NAME}"
+      "${BUILD_CONTEXT}"
+
+    - docker push "${IMAGE_FULL}"
+    - echo "Build completed ${IMAGE_FULL}"
+
+deploy:dev:
+  stage: deploy
+  tags:
+    - dev-f2c-cicd
+  needs:
+    - job: build:dev
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^dev_\d{2}\.\d{2}\.\d{4}_v\d+$/'
+      when: manual
+  variables:
+    IMAGE_REPO: "${CI_REGISTRY}/${SYSTEM_NAME}/${SERVICE_NAME}"
+  script:
+    - set -euo pipefail
+    - export IMAGE_FULL="${IMAGE_REPO}:${IMAGE_TAG}"
+    - echo "Deploying ${IMAGE_FULL} to ${DEV_NAMESPACE}"
+    - kubectl version --client
+    - kubectl -n "${DEV_NAMESPACE}" get deployment "${K8S_DEPLOYMENT_NAME}"
+    - kubectl -n "${DEV_NAMESPACE}" set image deployment/"${K8S_DEPLOYMENT_NAME}" "${K8S_CONTAINER_NAME}"="${IMAGE_FULL}"
+    - kubectl -n "${DEV_NAMESPACE}" rollout status deployment/"${K8S_DEPLOYMENT_NAME}" --timeout="${K8S_ROLLOUT_TIMEOUT}"
+    - kubectl -n "${DEV_NAMESPACE}" get pods -l app.kubernetes.io/name="${K8S_DEPLOYMENT_NAME}" -o wide || true
+    - echo "Deployment successful"
+
+build:stag:
+  stage: build
+  tags:
+    - dev-f2c-cicd
+  variables:
+    IMAGE_REPO: "${CI_REGISTRY}/${SYSTEM_NAME}/${SERVICE_NAME}"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^stag_\d{2}\.\d{2}\.\d{4}_v\d+$/'
+      when: always
+  script:
+    - set -euo pipefail
+    - export ENV_NAME="$(echo "${CI_COMMIT_TAG}" | cut -d'_' -f1)"
+    - export IMAGE_FULL="${IMAGE_REPO}:${IMAGE_TAG}"
+    - echo "ENV_NAME=${ENV_NAME}"
+    - echo "IMAGE_FULL=${IMAGE_FULL}"
+    - docker info
+
+    - wget -O ./.bin-yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+    - chmod +x ./.bin-yq
+    - export YQ_BIN="$(pwd)/.bin-yq"
+    - ${YQ_BIN} --version
+
+    - chmod +x scripts/build-native-config.sh
+    - chmod +x scripts/build-all-native-config.sh
+    - SERVICES="${CONFIG_SERVICES}" YQ_BIN="${YQ_BIN}" ./scripts/build-all-native-config.sh "${ENV_NAME}" "${CONFIG_SOURCE_DIR}"
+
+    - test -d build/native-config/config
+    - find build/native-config/config -maxdepth 3 -type f | sort
+
+    - >
+      docker build
+      -f "${DOCKERFILE}"
+      -t "${IMAGE_FULL}"
+      --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+      --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
+      --build-arg VERSION="${IMAGE_TAG}"
+      --label "git.commit=${CI_COMMIT_SHA}"
+      --label "git.branch=${CI_COMMIT_REF_NAME}"
+      --label "git.tag=${CI_COMMIT_TAG}"
+      --label "pipeline.id=${CI_PIPELINE_ID}"
+      --label "pipeline.url=${CI_PIPELINE_URL}"
+      --label "service.name=${SERVICE_NAME}"
+      --label "config.env=${ENV_NAME}"
+      "${BUILD_CONTEXT}"
+
+    - docker push "${IMAGE_FULL}"
+    - echo "Build completed ${IMAGE_FULL}"
+
+deploy:stag:
+  stage: deploy
+  tags:
+    - dev-f2c-cicd
+  needs:
+    - job: build:stag
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^stag_\d{2}\.\d{2}\.\d{4}_v\d+$/'
+      when: manual
+  variables:
+    IMAGE_REPO: "${CI_REGISTRY}/${SYSTEM_NAME}/${SERVICE_NAME}"
+  script:
+    - set -euo pipefail
+    - export IMAGE_FULL="${IMAGE_REPO}:${IMAGE_TAG}"
+    - echo "Deploying ${IMAGE_FULL} to ${STAG_NAMESPACE}"
+    - kubectl version --client
+    - kubectl -n "${STAG_NAMESPACE}" get deployment "${K8S_DEPLOYMENT_NAME}"
+    - kubectl -n "${STAG_NAMESPACE}" set image deployment/"${K8S_DEPLOYMENT_NAME}" "${K8S_CONTAINER_NAME}"="${IMAGE_FULL}"
+    - kubectl -n "${STAG_NAMESPACE}" rollout status deployment/"${K8S_DEPLOYMENT_NAME}" --timeout="${K8S_ROLLOUT_TIMEOUT}"
+    - kubectl -n "${STAG_NAMESPACE}" get pods -l app.kubernetes.io/name="${K8S_DEPLOYMENT_NAME}" -o wide || true
+    - echo "Deployment successful"
+
+build:prod:
+  stage: build
+  tags:
+    - dev-f2c-cicd
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^prod_\d{2}\.\d{2}\.\d{4}_v\d+$/'
+      when: manual
+  variables:
+    IMAGE_REPO: "${PROD_REGISTRY}/${SYSTEM_NAME}/${SERVICE_NAME}"
+  before_script:
+    - echo "${REGISTRY_PASSWORD}" | docker login "${PROD_REGISTRY}" -u "${REGISTRY_USER}" --password-stdin
+  script:
+    - set -euo pipefail
+    - export ENV_NAME="$(echo "${CI_COMMIT_TAG}" | cut -d'_' -f1)"
+    - export IMAGE_FULL="${IMAGE_REPO}:${IMAGE_TAG}"
+    - echo "ENV_NAME=${ENV_NAME}"
+    - echo "IMAGE_FULL=${IMAGE_FULL}"
+    - docker info
+
+    - wget -O ./.bin-yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+    - chmod +x ./.bin-yq
+    - export YQ_BIN="$(pwd)/.bin-yq"
+    - ${YQ_BIN} --version
+
+    - chmod +x scripts/build-native-config.sh
+    - chmod +x scripts/build-all-native-config.sh
+    - SERVICES="${CONFIG_SERVICES}" YQ_BIN="${YQ_BIN}" ./scripts/build-all-native-config.sh "${ENV_NAME}" "${CONFIG_SOURCE_DIR}"
+
+    - test -d build/native-config/config
+    - find build/native-config/config -maxdepth 3 -type f | sort
+
+    - >
+      docker build
+      -f "${DOCKERFILE}"
+      -t "${IMAGE_FULL}"
+      --build-arg BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+      --build-arg VCS_REF="${CI_COMMIT_SHORT_SHA}"
+      --build-arg VERSION="${IMAGE_TAG}"
+      --label "git.commit=${CI_COMMIT_SHA}"
+      --label "git.branch=${CI_COMMIT_REF_NAME}"
+      --label "git.tag=${CI_COMMIT_TAG}"
+      --label "pipeline.id=${CI_PIPELINE_ID}"
+      --label "pipeline.url=${CI_PIPELINE_URL}"
+      --label "service.name=${SERVICE_NAME}"
+      --label "config.env=${ENV_NAME}"
+      "${BUILD_CONTEXT}"
+
+    - docker push "${IMAGE_FULL}"
+    - echo "Build completed ${IMAGE_FULL}"
+  after_script:
+    - docker logout "${PROD_REGISTRY}"
+
+deploy:prod:
+  stage: deploy
+  tags:
+    - prod-f2c-cicd
+  needs:
+    - job: build:prod
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^prod_\d{2}\.\d{2}\.\d{4}_v\d+$/'
+      when: manual
+  variables:
+    IMAGE_REPO: "${PROD_REGISTRY}/${SYSTEM_NAME}/${SERVICE_NAME}"
+  script:
+    - set -euo pipefail
+    - export IMAGE_FULL="${IMAGE_REPO}:${IMAGE_TAG}"
+    - echo "Deploying ${IMAGE_FULL} to ${PROD_NAMESPACE}"
+    - kubectl version --client
+    - kubectl -n "${PROD_NAMESPACE}" get deployment "${K8S_DEPLOYMENT_NAME}"
+    - kubectl -n "${PROD_NAMESPACE}" set image deployment/"${K8S_DEPLOYMENT_NAME}" "${K8S_CONTAINER_NAME}"="${IMAGE_FULL}"
+    - kubectl -n "${PROD_NAMESPACE}" rollout status deployment/"${K8S_DEPLOYMENT_NAME}" --timeout="${K8S_ROLLOUT_TIMEOUT}"
+    - kubectl -n "${PROD_NAMESPACE}" get pods -l app.kubernetes.io/name="${K8S_DEPLOYMENT_NAME}" -o wide || true
+    - echo "Deployment successful"
