@@ -1,44 +1,45 @@
 server:
   port: 8888
 
+# ==========================================
+# CẤU HÌNH OBSERVABILITY (METRIC, LOG, TRACING)
+# ==========================================
 management:
-<<<<<<< HEAD
-                                       endpoints:
-    web:
-      exposure:
-        include: health,info,env
-
-        include=health,info,prometheus:endpoint:
-=======
   endpoints:
     web:
       exposure:
-        include: health,info,env
+        # Mở khóa các cổng để Prometheus vào lấy dữ liệu (Metric)
+        include: "health,info,env,prometheus,metrics"
   endpoint:
->>>>>>> 724b758a85d9c85716f89ff1428676f210253c89
     health:
       show-details: when_authorized
       probes:
         enabled: true
+    prometheus:
+      enabled: true
 
+  # Cấu hình Tracing (Dấu vết)
+  tracing:
+    sampling:
+      probability: 1.0 # 1.0 nghĩa là ghi nhận 100% các request (dùng cho môi trường Test/Dev)
+
+# ==========================================
+# CẤU HÌNH SPRING CLOUD CONFIG
+# ==========================================
 spring:
-  application:
-    name: cloud-config-server
   profiles:
+    # LƯU Ý: Nếu chạy máy ảo ở nhà không bắt được Git Viettel, HÃY SỬA 'git' THÀNH 'native'
     active: git
   cloud:
     config:
       server:
         git:
-          uri: https://git.viettelpost.vn/f2c/backend/f2c-config.git
+          uri: http://hoangdh.gitlab.com/root/server.git
           default-label: main
           search-paths:
             - common
             - '{application}'
-<<<<<<< HEAD
           clone-on-start: true
 
-  management.endpoints.web.exposure.include=health,info,prometheus
-=======
-          clone-on-start: true
->>>>>>> 724b758a85d9c85716f89ff1428676f210253c89
+          username: root
+          password: 123456
