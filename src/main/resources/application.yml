@@ -1,34 +1,8 @@
 server:
   port: 8888
 
-# ==========================================
-# CẤU HÌNH OBSERVABILITY (METRIC, LOG, TRACING)
-# ==========================================
-management:
-  endpoints:
-    web:
-      exposure:
-        # Mở khóa các cổng để Prometheus vào lấy dữ liệu (Metric)
-        include: "health,info,env,prometheus,metrics"
-  endpoint:
-    health:
-      show-details: when_authorized
-      probes:
-        enabled: true
-    prometheus:
-      enabled: true
-
-  # Cấu hình Tracing (Dấu vết)
-  tracing:
-    sampling:
-      probability: 1.0 # 1.0 nghĩa là ghi nhận 100% các request (dùng cho môi trường Test/Dev)
-
-# ==========================================
-# CẤU HÌNH SPRING CLOUD CONFIG
-# ==========================================
 spring:
   profiles:
-    # LƯU Ý: Nếu chạy máy ảo ở nhà không bắt được Git Viettel, HÃY SỬA 'git' THÀNH 'native'
     active: git
   cloud:
     config:
@@ -43,3 +17,11 @@ spring:
             - '{application}'
           clone-on-start: true
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
