@@ -36,10 +36,10 @@ spring:
         git:
           uri: http://hoangdh.gitlab.com/root/server.git
           default-label: main
+          username: root
+          password: glpat-tLOLYU7WejzNJrEviu4c7W86MQp1OjEH.01.0w06m930m
           search-paths:
             - common
             - '{application}'
           clone-on-start: true
 
-          username: root
-          password: 123456
