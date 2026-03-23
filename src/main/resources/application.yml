@@ -2,12 +2,20 @@ server:
   port: 8888
 
 management:
+<<<<<<< HEAD
                                        endpoints:
     web:
       exposure:
         include: health,info,env
 
         include=health,info,prometheus:endpoint:
+=======
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env
+  endpoint:
+>>>>>>> 724b758a85d9c85716f89ff1428676f210253c89
     health:
       show-details: when_authorized
       probes:
@@ -27,6 +35,10 @@ spring:
           search-paths:
             - common
             - '{application}'
+<<<<<<< HEAD
           clone-on-start: true
 
   management.endpoints.web.exposure.include=health,info,prometheus
+=======
+          clone-on-start: true
+>>>>>>> 724b758a85d9c85716f89ff1428676f210253c89
