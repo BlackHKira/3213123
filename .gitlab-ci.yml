@@ -1,0 +1,22 @@
+stages:
+  - build
+  - trigger_jenkins
+
+# Job này giữ nguyên như cũ của bạn để build và push image
+build-stag:
+  stage: build
+  script:
+    - echo "Building Docker Image..."
+    - docker build -f Dockerfile -t Docker Hub.com/f2c-config-stag:latest .
+    - docker push your-registry.com/f2c-config-stag:latest
+
+# Job mới: Bắn tín hiệu sang Jenkins thay vì đẩy lên K8s
+trigger-test-jenkins:
+  stage: trigger_jenkins
+  image: curlimages/curl:latest # Dùng image chứa sẵn lệnh curl
+  script:
+    - echo "Đang gọi Jenkins tại hoangdang.jenkins.com để chạy test..."
+    # Thay thế YOUR_TOKEN và tên Job tương ứng trên Jenkins của bạn
+    - curl -X POST "http://hoangdang.jenkins.com/job/Run-Test-Stag/build?token=YOUR_JENKINS_TOKEN"
+  only:
+    - stag # Chỉ chạy khi bạn thao tác trên nhánh stag

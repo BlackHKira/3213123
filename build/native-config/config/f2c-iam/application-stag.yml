@@ -1,0 +1,16 @@
+spring:
+  config:
+    activate:
+      on-profile: stag
+  datasource:
+    # Trỏ vào Database Staging của IAM
+    url: jdbc:postgresql://db-stag-host:5432/f2c_iam_stag
+    username: ${DB_STAG_USERNAME}
+    password: ${DB_STAG_PASSWORD}
+
+server:
+  port: 8081
+
+logging:
+  level:
+    com.f2c.iam: INFO

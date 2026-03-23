@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  cloud-config-server:
+    image: f2c/cloud-config-server:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cloud-config
+    ports:
+      - "8080:8080"
+    environment:
+      #      JAVA_OPTS: ${JAVA_OPTS:-}
+      #      GIT_URI: ${GIT_URI}
+      #      GIT_BRANCH: ${GIT_BRANCH:-main}
+      #      GIT_SEARCH_PATHS: ${GIT_SEARCH_PATHS:-common,{application},{profile}}
+      #      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-git}
+      #      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: ${NATIVE_SEARCH_LOCATIONS:-}
+      #      GIT_REFRESH_RATE: ${GIT_REFRESH_RATE:-30}
+      #      GIT_SKIP_SSL: ${GIT_SKIP_SSL:-false}
+      #      GIT_USERNAME: ${GIT_USERNAME:hungnm70}
+      GIT_TOKEN:
+      #      SPRING_CLOUD_CONFIG_SERVER_GIT_BASEDIR: /app/git
+      #      SPRING_CLOUD_CONFIG_SERVER_GIT_FORCE_PULL: "true"
+      OTEL_SDK_DISABLED: "true"
+      OTEL_TRACES_EXPORTER: "none"
+      OTEL_METRICS_EXPORTER: "none"
+      OTEL_LOGS_EXPORTER: "none"
+
+      #    restart: unless-stopped
+
+    volumes:
+      - ./configs:/app/configs:ro
+      - git-cache:/app/git
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "-", "http://localhost:8888/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - config-net
+
+networks:
+  config-net:
+    driver: bridge
+
+volumes:
+  git-cache:

@@ -1,0 +1,88 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: f2c-iam
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            non_contextual_creation: true
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: false
+  messages:
+    encoding: UTF-8
+    basename: i18n/messages
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DB:0}
+      timeout: 2000ms
+      ssl:
+        enabled: ${REDIS_SSL:false}
+        verify-mode: ${REDIS_SSL_VERIFY_MODE:CA}
+      lettuce:
+        pool:
+          enabled: true
+
+keycloak:
+  server-url: https://dev-f2c-sso.viettelpost.vn/
+  realm: f2c
+
+  admin-client-id: f2c-admin-client
+  admin-client-secret: HvSApE3Tr3cMp8sntJ5f1Gozb1e8g03B
+
+  auth-client-id: f2c-auth-client
+  auth-client-secret: mxYlIrEoLYrMZz9hSiwBxuHyzBxXl56C
+
+  iam-client-id: iam-platform
+  iam-client-secret: HmnRLPmlqNSTvkRbu2Wvc37ICsONvzN1
+
+  policy-enforcer:
+    enforcement-mode: ENFORCING
+    http-method-as-scope: true
+    paths:
+      - path: /api/v1/auth/s/*
+        enforcement-mode: DISABLED
+      - path: /api/v1/auth/b/*
+        enforcement-mode: DISABLED
+
+  jwk-set-uri: https://dev-f2c-sso.viettelpost.vn/realms/f2c/protocol/openid-connect/certs
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname}:8888/eureka
+
+custom:
+  properties:
+    sso:
+      base-url: https://dev-otp-verify.viettelpost.vn
+    user:
+      lock-ttl: 900
+      max-attempts: 5
+    otp:
+      ttl: 60
+      lock-ttl: 300
+      max-attempts: 5
+    token:
+      time-life: 1D
+      rsa:
+        private:
+          key: MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCdnG3NKGjagcOPPGPqvN+IVph8EelanH6smM2e3ulOtNizaAon6jS9pzgjdcepJNmKm0My1GYTPo4aTTQu1mov2gpsiTZU7j3qcrXgIl/oPTykGz5cDCBGeKHEjlZ0TXHrChXN2BVnTvU4WOAC07NKlfcj2HLHjyAkIjkkHO9WDBUSYmi7C6fqWt5nQl63girrmIM+D8PN4UfVv+ALnu30JZ3KPISNgTqs0hYTGA6rbYXUN75cYtYHwK0aYPtXbZRxxzmDk5JmSTpu6qIERqwISqCco6aFb4abzNmZq9hFzVIuKJmsNKLMkpPoorq2GWMNo7jaH+/R+vzaqBlrCOhPAgMBAAECggEAGUlYGnKxw+DO0cO0GhycVmDiTQGIqVdzQViwoJ0N3GlKXRpDitzaAlV6PcIvOtVlK4Y2dUi7abn/DXw2c49F8RBv3LL06xJgD6XAxUlujrGIcaHHUvhFE1lWRtU5TKaCMN3o2qIg6PazhAtKQVnaqYw+3triq16snu94sHEN+wVrvQVOqtPvUDoourVoqdn5pTmRc7xLr8lO5yzHrff8kLqgIa3f8r+33FQ8yg1JzWrMKO8Rs/lk+VXZYAtElxdT+TP/vNqyMwm7ZAozQpBNAvg6z8zNkxCVp7uBOws1hIbRISVEdit/CaI9t19V7YVbMb5YJEKuTUSizSq0yG3aMQKBgQDCcZ8Vhxp76z1Xql90FFrgEV4+XRVzAANsV6kkS5eSoCiiHUpsTZgPPZj7LcNuvgmDl6vkCI0brttFg6JHlU+3m158LXN+89UidmZRjS0bZXUybMVpnluKVQPiInL4Jrl1QZWepC0I15U1SZV7vRyGTgwGKyYwSU5P86xGKwWMkQKBgQDPgcFr3QtBr6JXkW9qepNF2zualhE0OwcrkkGQW2vpD5FMWu553gSxEEpaLf5HzBGjzLzfc5f1wuWCUyc78tA0jEvp7qBcWXZuxkk9inqWVsRLk5eMaX2cadEi1twlrQ0HnjoZGhJ0i02omQ+f7Vrf0FF4jTwIQrbHIRBmYK8W3wKBgQDCG8tEIms96ciDC4Hez7MonC4I88PF2e2Q6rHfmdbmeRwXOkZhd9Sk4kkl9rlyhCPbSj4+lorHZ/ddndsSuuupz2CzdmwmACR1Et1x7A1rnA0zGYK5vWyE2/nUda9wKrhZZe+HPz315cD+QUcJD/C54o/+WHT3HzceeZMxOSGBAQKBgEjUh+itynehh18owmwi3XHVQpQ9O4iTdy7JxI1AKR3BwwODntPTIt5qk04XenoEm+Rbxaa/0YQGhbs6KDkYPg9TdomCoXIITFMQ8T/STLhbd8X25Wf41oeBdE/ADcCDfmFAHbAVwIh7JCSapCtDiXOokA+5smpL0A8QAcuM/6cNAoGACMzSdcazGaCcd04vO29punqLVoF5xCv5ixxLw7Nqss8jHIRAKyWb98vd7pzi5m8gryn4xNlv+wyIjzpxwAgzsmuA7S64ztN3pkAYKqNhXInkeAhjQj/ILAPPf/UGMSvEswx9zYb5LOKj1GSC3c+SIZWtpc7gCvqYaR5DpIfmG50=

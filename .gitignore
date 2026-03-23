@@ -1,0 +1,41 @@
+# Build outputs
+/target/
+/cloud-config-server-*.jar
+
+# Maven
+pom.xml.versionsBackup
+.releaseBackup
+dependency-reduced-pom.xml
+.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+hs_err_pid*
+replay_pid*
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Local test repo (do not commit)
+/repo/
+
+# Node (if any)
+node_modules/
+
+# Env files
+.env
+.env.*.local
+/git-cache/
