@@ -2,6 +2,8 @@ server:
   port: 8888
 
 spring:
+  application:
+    name: cloud-config-server
   profiles:
     active: git
   cloud:
@@ -10,8 +12,6 @@ spring:
         git:
           uri: http://hoangdh.gitlab.com/root/server.git
           default-label: main
-          username: root
-          password: glpat-tLOLYU7WejzNJrEviu4c7W86MQp1OjEH.01.0w06m930m
           search-paths:
             - common
             - '{application}'
@@ -21,7 +21,22 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: "health,info,env,prometheus" # Mở cổng cho Prometheus vào thu thập
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0 # Thu thập 100% request (Dùng cho môi trường dev/test)
+
+# Cấu hình Log để Promtail/Alloy dễ dàng bóc tách
+logging:
+  pattern:
+    # Định dạng log: Gắn thêm [Tên_App, TraceID, SpanID] vào mỗi dòng log
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
