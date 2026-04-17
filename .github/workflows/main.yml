@@ -2,7 +2,7 @@ name: CI/CD Pipeline & Security Scan
 
 on:
   push:
-    branches: [ "stag" ] # Chạy khi bạn push code lên nhánh stag
+    branches: [ "main" ] # Chạy khi bạn push code lên nhánh stag
 
 jobs:
   # 1. Giai đoạn Build Image
