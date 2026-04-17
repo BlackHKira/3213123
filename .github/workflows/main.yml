@@ -59,8 +59,6 @@ jobs:
       - name: OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          # Thay bằng URL môi trường Staging thực tế của bạn
-          target: 'http://ip-cua-staging-server'
-          # Tên file báo cáo sẽ xuất hiện trong tab Artifacts
+          target: 'https://www.zaproxy.org' 
           report_filename: 'zap-report.html'
-          fail_action: false # Không làm sập Pipeline nếu phát hiện lỗi
+          fail_action: false
