@@ -22,7 +22,7 @@ jobs:
           # Cấp quyền thực thi cho file script
           chmod +x scripts/build-all-native-config.sh
           # Chạy script để sinh ra thư mục build/native-config/config
-          ./scripts/build-all-native-config.sh
+          ./scripts/build-all-native-config.sh stag ./src/main/resources/config
 
       - name: Build Docker Image
         run: |
