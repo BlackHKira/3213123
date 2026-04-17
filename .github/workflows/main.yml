@@ -1,0 +1,42 @@
+name: CI/CD Pipeline & Security Scan
+
+on:
+  push:
+    branches: [ "stag" ] # Chạy khi bạn push code lên nhánh stag
+
+jobs:
+  # 1. Giai đoạn Build Image
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          echo "🏗️ Building Docker Image..."
+          docker build -f Dockerfile -t f2c-config-stag:latest .
+
+  # 2. Giai đoạn gọi Jenkins (Trigger)
+  trigger-jenkins:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bắn tín hiệu sang Jenkins
+        run: |
+          echo "🚀 Đang gọi Jenkins tại hoangdang.jenkins.com..."
+          curl -X POST "http://hoangdang.jenkins.com/job/Run-Test-Stag/build?token=${{ secrets.JENKINS_TOKEN }}"
+
+  # 3. Giai đoạn Quét bảo mật bằng ZAP
+  zap-scan:
+    needs: trigger-jenkins
+    runs-on: ubuntu-latest
+    steps:
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          # Thay bằng URL môi trường Staging thực tế của bạn
+          target: 'http://ip-cua-staging-server'
+          # Tên file báo cáo sẽ xuất hiện trong tab Artifacts
+          report_filename: 'zap-report'
+          fail_action: false # Không làm sập Pipeline nếu phát hiện lỗi (để bạn test trước)
