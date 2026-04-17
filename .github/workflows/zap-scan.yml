@@ -3,7 +3,7 @@ name: Kịch bản CI/CD và Quét Bảo mật (GitHub Actions)
 # 1. Kích hoạt khi có người push code lên nhánh stag
 on:
   push:
-    branches: [ "stag" ]
+    branches: [ "main" ]
 
 jobs:
   build-and-scan:
